@@ -73,14 +73,13 @@ const displayMovements = function (movements) {
       <div class="movements__type movements__type--${movementType}">${
       index + 1
     } ${movementType}</div>
-      <div class="movements__value">${movement}</div>
+      <div class="movements__value">${movement}€</div>
     </div>
   `;
 
     containerMovements.insertAdjacentHTML('afterbegin', html);
   });
 };
-displayMovements(account1.movements);
 
 const createUsernames = function (accs) {
   accs.forEach(function (acc) {
@@ -93,8 +92,92 @@ const createUsernames = function (accs) {
 };
 createUsernames(accounts);
 
-const calcDisplayBalance = function (movements) {
-  const balance = movements.reduce((acc, mov) => acc + mov, 0);
-  labelBalance.textContent = `${balance} EUR`;
+const updateUI = function (acc) {
+  // Display movements.
+  displayMovements(acc.movements);
+
+  // Display balance.
+  calcDisplayBalance(acc);
+
+  // Display summary.
+  calcDisplaySummary(acc);
 };
-calcDisplayBalance(account1.movements);
+
+const calcDisplayBalance = function (account) {
+  account.balance = account.movements.reduce((acc, mov) => acc + mov, 0);
+  labelBalance.textContent = `${account.balance}€`;
+};
+
+const calcDisplaySummary = function (account) {
+  const incomes = account.movements
+    .filter(mov => mov > 0)
+    .reduce((acc, mov) => acc + mov, 0);
+  labelSumIn.textContent = `${incomes}€`;
+
+  const outcomes = account.movements
+    .filter(mov => mov < 0)
+    .reduce((acc, mov) => acc + mov, 0);
+  labelSumOut.textContent = `${Math.abs(outcomes)}€`;
+
+  const interest = account.movements
+    .filter(mov => mov > 0)
+    .map(mov => (mov * account.interestRate) / 100)
+    .filter(mov => mov >= 1)
+    .reduce((acc, mov) => acc + mov, 0);
+  labelSumInterest.textContent = `${interest}€`;
+};
+
+// Event Handlers
+let currentAccount;
+
+btnLogin.addEventListener('click', function (e) {
+  // Prevent form from submitting
+  e.preventDefault();
+
+  currentAccount = accounts.find(
+    acc => acc.username === inputLoginUsername.value
+  );
+
+  if (currentAccount?.pin === Number(inputLoginPin.value)) {
+    // Display UI and a welcome message
+    labelWelcome.textContent = `Welcome back ${
+      currentAccount.owner.split(' ')[0]
+    }`;
+    containerApp.style.opacity = 100;
+
+    // Clear the input fields
+    inputLoginUsername.value = inputLoginPin.value = '';
+    inputLoginPin.blur();
+
+    // Update the UI
+    updateUI(currentAccount);
+  }
+});
+
+btnTransfer.addEventListener('click', function (e) {
+  // Prevent form from submitting
+  e.preventDefault();
+
+  const amount = Number(inputTransferAmount.value);
+  const receiverAccount = accounts.find(
+    account => account.username === inputTransferTo.value
+  );
+
+  // Clear input fields
+  inputTransferAmount.value = inputTransferTo.value = '';
+  inputTransferAmount.blur();
+
+  if (
+    amount > 0 &&
+    receiverAccount &&
+    currentAccount.balance >= amount &&
+    currentAccount.username !== receiverAccount?.username
+  ) {
+    // Doing the transfer
+    currentAccount.movements.push(-amount);
+    receiverAccount.movements.push(amount);
+
+    // Update the UI
+    updateUI(currentAccount);
+  }
+});
